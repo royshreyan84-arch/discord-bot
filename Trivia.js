@@ -1,5 +1,7 @@
 const https = require('https');
 
+const REQUEST_TIMEOUT = 10_000;
+
 const CATEGORIES = {
   general: 9,
   science: 17,
@@ -12,18 +14,25 @@ const CATEGORIES = {
 function fetchQuestion(category) {
   const catId = CATEGORIES[category] || 9;
   return new Promise((resolve, reject) => {
-    https.get(`https://opentdb.com/api.php?amount=1&type=multiple&category=${catId}`, (res) => {
+    const request = https.get(`https://opentdb.com/api.php?amount=1&type=multiple&category=${catId}`, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
           const parsed = JSON.parse(data);
+          if (parsed.response_code !== 0 || !parsed.results?.length) {
+            return reject(new Error('Trivia API returned no question'));
+          }
           resolve(parsed.results[0]);
         } catch (e) {
           reject(e);
         }
       });
-    }).on('error', reject);
+    });
+    request.setTimeout(REQUEST_TIMEOUT, () => {
+      request.destroy(new Error('Trivia API request timed out'));
+    });
+    request.on('error', reject);
   });
 }
 
