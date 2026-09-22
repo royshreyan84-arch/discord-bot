@@ -87,8 +87,7 @@ async function runAutoMod(message, client) {
   if (cfg.profanity.enabled) {
     const lower = content.toLowerCase();
     const hit = cfg.profanity.blockedWords.find(w => {
-      const escaped = w.toLowerCase().replace(/[.*+?^${}()|[\\]\\]/g, '\\const lower = content.toLowerCase();
-    const hit = cfg.profanity.blockedWords.find(w => lower.includes(w));');
+      const escaped = w.toLowerCase().replace(/[.*+?^$\{\}()|[\]\\]/g, '\\$&');
       return new RegExp(`(?:^|\\W)${escaped}(?:$|\\W)`, 'i').test(lower);
     });
     if (hit) {
@@ -143,7 +142,7 @@ async function runAutoMod(message, client) {
     const links = content.match(urlRegex) || [];
     const badLink = links.find(link => {
       try {
-        const domain = new URL(link).hostname.replace(/^www\\./, '').toLowerCase();
+        const domain = new URL(link).hostname.replace(/^www\./, '').toLowerCase();
         return !cfg.links.whitelist.some(allowed =>
           domain === allowed.toLowerCase() || domain.endsWith(`.${allowed.toLowerCase()}`)
         );
