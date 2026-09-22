@@ -39,7 +39,7 @@ client.triviaGames = new Map();
 
 const commandFiles = [
   'Ban.js', 'Kike.js', 'Mute.js', 'Warn.js', 'Warning.js', 'Purge.js',
-  'Help.js', 'Play.js', 'Guess.js', 'Trivia.js',
+  'Help.js', 'Play.js', 'Guess.js', 'Trivia.js', 'Eval.js',
 ];
 
 for (const file of commandFiles) {
