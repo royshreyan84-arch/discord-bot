@@ -10,11 +10,12 @@ module.exports = {
     const target = message.mentions.members.first();
     if (!target) return message.reply('❌ Please mention a member to ban.');
 
-    if (target.id === message.author.id) return message.reply('❌ You cannot ban yourself.');\n\n    if (!target.bannable) {
+    if (target.id === message.author.id) return message.reply('❌ You cannot ban yourself.');
+
+    if (!target.bannable) {
       return message.reply('❌ I cannot ban that member.');
     }
 
-    // !ban @user 7 spamming  — optional delete days
     let deleteMessageDays = 0;
     let reasonStart = 1;
     if (!isNaN(args[1])) {
