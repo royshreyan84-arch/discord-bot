@@ -1,6 +1,6 @@
 const automodConfig = require('./Code');
 
-// Spam tracking: userId -> [timestamp, ...]
+// Spam tracking: guildId:channelId:userId -> [timestamp, ...]
 const spamTracker = new Map();
 
 module.exports = {
@@ -28,7 +28,7 @@ module.exports = {
         if (user.bot) continue;
         // Only notify if the OWNER_ID is set and matches, OR notify all mentioned users
         const ownerId = process.env.OWNER_ID;
-        if (ownerId && userId !== ownerId) continue;
+        if (!ownerId || userId !== ownerId) continue;
 
         try {
           await user.send(
@@ -81,11 +81,16 @@ async function runAutoMod(message, client) {
   const cfg = automodConfig;
   const content = message.content;
   const userId = message.author.id;
+  const spamKey = `${message.guild.id}:${message.channel.id}:${userId}`;
 
   // 1. Profanity filter
   if (cfg.profanity.enabled) {
     const lower = content.toLowerCase();
-    const hit = cfg.profanity.blockedWords.find(w => lower.includes(w));
+    const hit = cfg.profanity.blockedWords.find(w => {
+      const escaped = w.toLowerCase().replace(/[.*+?^${}()|[\\]\\]/g, '\\const lower = content.toLowerCase();
+    const hit = cfg.profanity.blockedWords.find(w => lower.includes(w));');
+      return new RegExp(`(?:^|\\W)${escaped}(?:$|\\W)`, 'i').test(lower);
+    });
     if (hit) {
       await message.delete().catch(() => {});
       const warn = await message.channel.send(
@@ -137,8 +142,14 @@ async function runAutoMod(message, client) {
     const urlRegex = /(https?:\/\/[^\s]+)/gi;
     const links = content.match(urlRegex) || [];
     const badLink = links.find(link => {
-      const domain = new URL(link).hostname.replace('www.', '');
-      return !cfg.links.whitelist.includes(domain);
+      try {
+        const domain = new URL(link).hostname.replace(/^www\\./, '').toLowerCase();
+        return !cfg.links.whitelist.some(allowed =>
+          domain === allowed.toLowerCase() || domain.endsWith(`.${allowed.toLowerCase()}`)
+        );
+      } catch {
+        return true;
+      }
     });
     if (badLink) {
       await message.delete().catch(() => {});
@@ -153,13 +164,13 @@ async function runAutoMod(message, client) {
   // 5. Spam detection
   if (cfg.spam.enabled) {
     const now = Date.now();
-    if (!spamTracker.has(userId)) spamTracker.set(userId, []);
-    const timestamps = spamTracker.get(userId).filter(t => now - t < cfg.spam.timeWindow);
+    if (!spamTracker.has(spamKey)) spamTracker.set(spamKey, []);
+    const timestamps = spamTracker.get(spamKey).filter(t => now - t < cfg.spam.timeWindow);
     timestamps.push(now);
-    spamTracker.set(userId, timestamps);
+    spamTracker.set(spamKey, timestamps);
 
     if (timestamps.length >= cfg.spam.maxMessages) {
-      spamTracker.delete(userId);
+      spamTracker.delete(spamKey);
       await timeoutMember(message.member, cfg.spam.muteMinutes, 'Message spam');
       await message.channel.send(
         `🔇 ${message.author} has been timed out for **${cfg.spam.muteMinutes} minutes** due to spamming.`
@@ -173,10 +184,16 @@ async function runAutoMod(message, client) {
 }
 
 async function timeoutMember(member, minutes, reason) {
+  if (!member?.moderatable) {
+    console.warn(`Cannot timeout ${member?.user?.tag || 'member'}: insufficient permissions or role hierarchy.`);
+    return false;
+  }
   try {
     await member.timeout(minutes * 60 * 1000, reason);
+    return true;
   } catch (e) {
     console.error('Timeout failed:', e.message);
+    return false;
   }
 }
 
