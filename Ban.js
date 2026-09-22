@@ -10,7 +10,7 @@ module.exports = {
     const target = message.mentions.members.first();
     if (!target) return message.reply('❌ Please mention a member to ban.');
 
-    if (!target.bannable) {
+    if (target.id === message.author.id) return message.reply('❌ You cannot ban yourself.');\n\n    if (!target.bannable) {
       return message.reply('❌ I cannot ban that member.');
     }
 
