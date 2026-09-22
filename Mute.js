@@ -8,7 +8,10 @@ module.exports = {
     }
 
     const target = message.mentions.members.first();
-    if (!target) return message.reply('❌ Please mention a member.');\n\n    if (target.id === message.author.id) return message.reply('❌ You cannot mute yourself.');\n    if (!target.moderatable) return message.reply('❌ I cannot mute that member (they may have a higher role).');
+    if (!target) return message.reply('❌ Please mention a member.');
+
+    if (target.id === message.author.id) return message.reply('❌ You cannot mute yourself.');
+    if (!target.moderatable) return message.reply('❌ I cannot mute that member (they may have a higher role).');
 
     const minutes = parseInt(args[1]);
     if (isNaN(minutes) || minutes < 1) {
@@ -17,7 +20,7 @@ module.exports = {
 
     const reason = args.slice(2).join(' ') || 'No reason provided';
     const ms = minutes * 60 * 1000;
-    const MAX = 28 * 24 * 60 * 60 * 1000; // 28 days (Discord max)
+    const MAX = 28 * 24 * 60 * 60 * 1000;
 
     if (ms > MAX) return message.reply('❌ Max timeout duration is 28 days.');
 
@@ -32,8 +35,6 @@ module.exports = {
   },
 };
 
-// Register unmute as a separate command by exporting it separately
-// index.js loads all exports that have a `name` field
 const unmute = {
   name: 'unmute',
   description: 'Remove a timeout from a member',
@@ -56,7 +57,6 @@ const unmute = {
   },
 };
 
-// Attach unmute so index.js can pick it up if it iterates module exports
 module.exports.unmute = unmute;
 
 function logAction(client, guild, action, mod, target, reason) {
