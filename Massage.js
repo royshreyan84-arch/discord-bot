@@ -1,4 +1,4 @@
-const automodConfig = require('../config/automod');
+const automodConfig = require('./Code');
 
 // Spam tracking: userId -> [timestamp, ...]
 const spamTracker = new Map();
