@@ -20,6 +20,20 @@ const client = new Client({
 client.commands = new Collection();
 client.cooldowns = new Collection();
 client.warnData = new Map();
+
+const dataDir = path.join(__dirname, 'data');
+const warningsFile = path.join(dataDir, 'warnings.json');
+fs.mkdirSync(dataDir, { recursive: true });
+try {
+  const savedWarnings = JSON.parse(fs.readFileSync(warningsFile, 'utf8'));
+  for (const [key, value] of Object.entries(savedWarnings)) client.warnData.set(key, value);
+} catch {
+  fs.writeFileSync(warningsFile, '{}');
+}
+client.saveWarnings = () => {
+  const data = Object.fromEntries(client.warnData);
+  fs.writeFileSync(warningsFile, JSON.stringify(data, null, 2));
+};
 client.musicQueues = new Map();
 client.triviaGames = new Map();
 
