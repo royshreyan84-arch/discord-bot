@@ -198,7 +198,10 @@ async function timeoutMember(member, minutes, reason) {
 
 function addWarn(client, userId, reason) {
   if (!client.warnData.has(userId)) client.warnData.set(userId, []);
-  client.warnData.get(userId).push({ reason, date: new Date().toISOString() });
+  const key = `${message.guild.id}:${userId}`;
+  if (!client.warnData.has(key)) client.warnData.set(key, []);
+  client.warnData.get(key).push({ reason, date: new Date().toISOString(), mod: 'AutoMod' });
+  client.saveWarnings?.();
 }
 
 async function logAction(client, guild, action, user, reason) {
