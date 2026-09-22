@@ -8,7 +8,7 @@ module.exports = {
     }
 
     const target = message.mentions.members.first();
-    if (!target) return message.reply('❌ Please mention a member.');
+    if (!target) return message.reply('❌ Please mention a member.');\n\n    if (target.id === message.author.id) return message.reply('❌ You cannot mute yourself.');\n    if (!target.moderatable) return message.reply('❌ I cannot mute that member (they may have a higher role).');
 
     const minutes = parseInt(args[1]);
     if (isNaN(minutes) || minutes < 1) {
