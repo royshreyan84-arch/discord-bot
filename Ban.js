@@ -25,7 +25,7 @@ module.exports = {
 
     try {
       await target.send(`🔨 You have been **banned** from **${message.guild.name}**.\nReason: ${reason}`).catch(() => {});
-      await target.ban({ deleteMessageDays, reason });
+      await target.ban({ deleteMessageSeconds: deleteMessageDays * 24 * 60 * 60, reason });
       message.channel.send(`✅ **${target.user.tag}** has been banned.\nReason: ${reason}`);
       logAction(client, message.guild, '🔨 Ban', message.author, target.user, reason);
     } catch (e) {
