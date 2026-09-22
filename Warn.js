@@ -23,6 +23,7 @@ module.exports = {
       date: new Date().toISOString(),
       mod: message.author.tag,
     });
+    client.saveWarnings();
 
     const warnCount = client.warnData.get(key).length;
 
