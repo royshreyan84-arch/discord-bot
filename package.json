@@ -2,10 +2,10 @@
   "name": "discord-mod-bot",
   "version": "1.0.0",
   "description": "A feature-rich Discord moderation bot with music and mini-games",
-  "main": "index.js",
+  "main": "Index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node Index.js",
+    "dev": "nodemon Index.js"
   },
   "dependencies": {
     "@discordjs/opus": "^0.9.0",
