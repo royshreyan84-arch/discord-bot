@@ -44,6 +44,7 @@ async function getOrCreateQueue(client, message) {
       console.log(`[MusicVoice] Networking state: ${newState.networking.state.code}`);
       newState.networking.on('debug', debug => console.log(`[MusicVoice][Networking] ${debug}`));
       newState.networking.on('error', error => console.error('[MusicVoice][Networking Error]', error));
+      newState.networking.on('close', code => console.error('[MusicVoice][Networking Close] code:', code));
     }
   });
 
