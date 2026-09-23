@@ -18,7 +18,13 @@ async function getOrCreateQueue(client, message) {
 
   const voiceChannel = message.member.voice.channel;
   if (!voiceChannel) {
-    message.reply('❌ You need to be in a voice channel!');
+    await message.reply('❌ You need to be in a voice channel!');
+    return null;
+  }
+
+  const permissions = voiceChannel.permissionsFor(message.guild.members.me);
+  if (!permissions?.has(['Connect', 'Speak'])) {
+    await message.reply('❌ I need **Connect** and **Speak** permissions in that voice channel.');
     return null;
   }
 
@@ -30,9 +36,10 @@ async function getOrCreateQueue(client, message) {
 
   try {
     await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
-  } catch {
+  } catch (error) {
+    console.error('[MusicVoiceConnection]', error);
     connection.destroy();
-    message.reply('❌ Could not connect to voice channel.');
+    await message.reply(`❌ Could not connect to voice channel.\n\`${error?.message || 'Voice connection timed out'}\``);
     return null;
   }
 
