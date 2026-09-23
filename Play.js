@@ -28,18 +28,40 @@ async function getOrCreateQueue(client, message) {
     return null;
   }
 
+  console.log(\`[MusicVoice] Joining voice channel: \${voiceChannel.name} (\${voiceChannel.id}) in guild \${guildId}\`);
+
   const connection = joinVoiceChannel({
     channelId: voiceChannel.id,
     guildId,
     adapterCreator: message.guild.voiceAdapterCreator,
+    selfDeaf: true,
   });
+
+  connection.on('stateChange', (oldState, newState) => {
+    console.log(\`[MusicVoice] State: \${oldState.status} -> \${newState.status}\`);
+    if (newState.networking) {
+      console.log(\`[MusicVoice] Networking state: \${newState.networking.state.code}\`);
+      newState.networking.on('debug', debug => console.log(\`[MusicVoice][Networking] \${debug}\`));
+      newState.networking.on('error', error => console.error('[MusicVoice][Networking Error]', error));
+    }
+  });
+
+  connection.on('error', error => {
+    console.error('[MusicVoice][Connection Error]', error);
+  });
+
+  console.log(\`[MusicVoice] Initial state: \${connection.state.status}\`);
 
   try {
     await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
   } catch (error) {
-    console.error('[MusicVoiceConnection]', error);
+    console.error('[MusicVoiceConnection] Failed to reach Ready state:', error);
+    console.error('[MusicVoiceConnection] Final state:', connection.state.status);
+    if (connection.state.networking) {
+      console.error('[MusicVoiceConnection] Final networking state:', connection.state.networking.state.code);
+    }
     connection.destroy();
-    await message.reply(`❌ Could not connect to voice channel.\n\`${error?.message || 'Voice connection timed out'}\``);
+    await message.reply(\`❌ Could not connect to voice channel.\nState: **\${connection.state.status}**\nError: \\\`\${error?.message || 'Voice connection timed out'}\\\`\`);
     return null;
   }
 
