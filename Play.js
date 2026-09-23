@@ -28,7 +28,7 @@ async function getOrCreateQueue(client, message) {
     return null;
   }
 
-  console.log(\`[MusicVoice] Joining voice channel: \${voiceChannel.name} (\${voiceChannel.id}) in guild \${guildId}\`);
+  console.log(`[MusicVoice] Joining voice channel: ${voiceChannel.name} (${voiceChannel.id}) in guild ${guildId}`);
 
   const connection = joinVoiceChannel({
     channelId: voiceChannel.id,
@@ -38,10 +38,10 @@ async function getOrCreateQueue(client, message) {
   });
 
   connection.on('stateChange', (oldState, newState) => {
-    console.log(\`[MusicVoice] State: \${oldState.status} -> \${newState.status}\`);
+    console.log(`[MusicVoice] State: ${oldState.status} -> ${newState.status}`);
     if (newState.networking) {
-      console.log(\`[MusicVoice] Networking state: \${newState.networking.state.code}\`);
-      newState.networking.on('debug', debug => console.log(\`[MusicVoice][Networking] \${debug}\`));
+      console.log(`[MusicVoice] Networking state: ${newState.networking.state.code}`);
+      newState.networking.on('debug', debug => console.log(`[MusicVoice][Networking] ${debug}`));
       newState.networking.on('error', error => console.error('[MusicVoice][Networking Error]', error));
     }
   });
@@ -50,7 +50,7 @@ async function getOrCreateQueue(client, message) {
     console.error('[MusicVoice][Connection Error]', error);
   });
 
-  console.log(\`[MusicVoice] Initial state: \${connection.state.status}\`);
+  console.log(`[MusicVoice] Initial state: ${connection.state.status}`);
 
   try {
     await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
@@ -61,7 +61,7 @@ async function getOrCreateQueue(client, message) {
       console.error('[MusicVoiceConnection] Final networking state:', connection.state.networking.state.code);
     }
     connection.destroy();
-    await message.reply(\`❌ Could not connect to voice channel.\nState: **\${connection.state.status}**\nError: \\\`\${error?.message || 'Voice connection timed out'}\\\`\`);
+    await message.reply(`❌ Could not connect to voice channel.\nState: **${connection.state.status}**\nError: \`${error?.message || 'Voice connection timed out'}\``);
     return null;
   }
 
