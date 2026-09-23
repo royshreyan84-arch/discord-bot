@@ -5,8 +5,9 @@ const {
   AudioPlayerStatus,
   VoiceConnectionStatus,
   entersState,
+  StreamType,
 } = require('@discordjs/voice');
-const ytdl = require('ytdl-core');
+const ytdl = require('@distube/ytdl-core');
 const ytSearch = require('yt-search');
 
 // Queue structure per guild:
@@ -67,8 +68,15 @@ async function getOrCreateQueue(client, message) {
     return null;
   }
 
-  const player = createAudioPlayer();
+  const player = createAudioPlayer({ debug: true });
   connection.subscribe(player);
+
+  player.on('stateChange', (oldState, newState) => {
+    console.log(`[MusicPlayer] State: ${oldState.status} -> ${newState.status}`);
+    if (newState.resource) {
+      console.log(`[MusicPlayer] Resource started=${newState.resource.started}, ended=${newState.resource.ended}, duration=${newState.resource.playbackDuration}ms`);
+    }
+  });
 
   const queue = { connection, player, songs: [], volume: 1, loop: false, textChannel: message.channel };
   client.musicQueues.set(guildId, queue);
@@ -79,7 +87,7 @@ async function getOrCreateQueue(client, message) {
     } else {
       queue.songs.shift();
       if (queue.songs.length > 0) {
-        playSong(client, guildId, queue.songs[0]);
+        void playSong(client, guildId, queue.songs[0]);
       } else {
         queue.textChannel.send('✅ Queue finished! Use `!play` to add more songs.');
         setTimeout(() => {
@@ -95,25 +103,53 @@ async function getOrCreateQueue(client, message) {
   player.on('error', err => {
     console.error('Player error:', err);
     queue.songs.shift();
-    if (queue.songs.length > 0) playSong(client, guildId, queue.songs[0]);
+    if (queue.songs.length > 0) void playSong(client, guildId, queue.songs[0]);
   });
 
   return queue;
 }
 
-function playSong(client, guildId, song) {
+async function playSong(client, guildId, song) {
   const queue = client.musicQueues.get(guildId);
   if (!queue || !song) return;
 
-  const stream = ytdl(song.url, {
-    filter: 'audioonly',
-    quality: 'highestaudio',
-    highWaterMark: 1 << 25,
-  });
+  try {
+    console.log(`[MusicPlayer] Loading: ${song.title}`);
+    const info = await ytdl.getInfo(song.url);
+    const format = ytdl.chooseFormat(info.formats, {
+      filter: format =>
+        format.hasAudio &&
+        !format.hasVideo &&
+        format.container === 'webm' &&
+        /opus/i.test(format.codecs || ''),
+    });
 
-  const resource = createAudioResource(stream);
-  queue.player.play(resource);
-  queue.textChannel.send(`🎵 Now playing: **${song.title}** (requested by ${song.requestedBy})`);
+    if (!format?.url) {
+      throw new Error('No WebM/Opus audio format was available for this video.');
+    }
+
+    console.log(`[MusicPlayer] Selected WebM/Opus format: ${format.itag}`);
+
+    const stream = ytdl.downloadFromInfo(info, {
+      format,
+      highWaterMark: 1 << 25,
+    });
+
+    stream.on('error', error => console.error('[MusicPlayer] YouTube stream error:', error));
+    stream.on('end', () => console.log('[MusicPlayer] YouTube stream ended:', song.title));
+
+    const resource = createAudioResource(stream, {
+      inputType: StreamType.WebmOpus,
+    });
+
+    queue.player.play(resource);
+    await queue.textChannel.send(`🎵 Now playing: **${song.title}** (requested by ${song.requestedBy})`);
+  } catch (error) {
+    console.error('[MusicPlayer] Failed to load/play song:', error);
+    queue.songs.shift();
+    await queue.textChannel.send(`❌ Could not play **${song.title}**. Check the console for the playback error.`);
+    if (queue.songs.length > 0) void playSong(client, guildId, queue.songs[0]);
+  }
 }
 
 // ── Commands ─────────────────────────────────────────────────────
@@ -147,7 +183,7 @@ module.exports = {
     queue.songs.push({ title, url, requestedBy: message.author.username });
 
     if (queue.player.state.status === AudioPlayerStatus.Idle || queue.songs.length === 1) {
-      playSong(client, message.guild.id, queue.songs[0]);
+      void playSong(client, message.guild.id, queue.songs[0]);
     } else {
       message.channel.send(`➕ Added to queue: **${title}** (position #${queue.songs.length})`);
     }
