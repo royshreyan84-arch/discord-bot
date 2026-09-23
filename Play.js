@@ -7,8 +7,61 @@ const {
   entersState,
   StreamType,
 } = require('@discordjs/voice');
-const ytdl = require('@distube/ytdl-core');
+const { Readable } = require('node:stream');
 const ytSearch = require('yt-search');
+
+let youtubePromise = null;
+
+async function getYouTube() {
+  if (!youtubePromise) {
+    youtubePromise = import('youtubei.js').then(({ Innertube }) => Innertube.create());
+  }
+  return youtubePromise;
+}
+
+function extractYouTubeId(value) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    if (host === 'youtu.be') return url.pathname.split('/').filter(Boolean)[0] || null;
+    if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+      if (url.searchParams.get('v')) return url.searchParams.get('v');
+      const parts = url.pathname.split('/').filter(Boolean);
+      if (['shorts', 'embed', 'live'].includes(parts[0])) return parts[1] || null;
+    }
+  } catch {}
+  return null;
+}
+
+async function getYouTubeInfo(videoId) {
+  const youtube = await getYouTube();
+  return youtube.getBasicInfo(videoId);
+}
+
+async function createYouTubeAudioStream(videoId) {
+  const youtube = await getYouTube();
+  const info = await youtube.getBasicInfo(videoId);
+  const format = info.chooseFormat({ type: 'audio', quality: 'best' });
+  if (!format) throw new Error('YouTube returned no audio-only format.');
+
+  const url = format.url || await format.decipher(youtube.session.player);
+  if (!url) throw new Error('YouTube returned an audio format without a playable URL.');
+
+  const response = await fetch(url);
+  if (!response.ok || !response.body) {
+    throw new Error('YouTube audio request failed with HTTP ' + response.status);
+  }
+
+  const stream = Readable.fromWeb(response.body);
+  const mimeType = String(format.mime_type || format.mimeType || '');
+  const codecs = String(format.codecs || '');
+  const inputType = /webm/i.test(mimeType) && /opus/i.test(codecs)
+    ? StreamType.WebmOpus
+    : StreamType.Arbitrary;
+
+  console.log('[MusicPlayer] YouTube audio format: itag=' + (format.itag ?? 'unknown') + ', mime=' + (mimeType || 'unknown') + ', codecs=' + (codecs || 'unknown') + ', inputType=' + inputType);
+  return { info, stream, inputType };
+}
 
 // Queue structure per guild:
 // { connection, player, songs: [{title, url, requestedBy}], volume: 1, loop: false }
@@ -108,44 +161,29 @@ async function playSong(client, guildId, song) {
   if (!queue || !song) return;
 
   try {
-    console.log(`[MusicPlayer] Loading: ${song.title}`);
-    const info = await ytdl.getInfo(song.url);
-    const format = ytdl.chooseFormat(info.formats, {
-      filter: format =>
-        format.hasAudio &&
-        !format.hasVideo &&
-        format.container === 'webm' &&
-        /opus/i.test(format.codecs || ''),
-    });
+    console.log('[MusicPlayer] Loading: ' + song.title);
+    const videoId = extractYouTubeId(song.url);
+    if (!videoId) throw new Error('Could not extract a YouTube video ID from the URL.');
 
-    if (!format?.url) {
-      throw new Error('No WebM/Opus audio format was available for this video.');
-    }
-
-    console.log(`[MusicPlayer] Selected WebM/Opus format: ${format.itag}`);
-
-    const stream = ytdl.downloadFromInfo(info, {
-      format,
-      highWaterMark: 1 << 25,
-    });
-
+    const { stream, inputType } = await createYouTubeAudioStream(videoId);
     stream.on('error', error => console.error('[MusicPlayer] YouTube stream error:', error));
     stream.on('end', () => console.log('[MusicPlayer] YouTube stream ended:', song.title));
+    stream.on('close', () => console.log('[MusicPlayer] YouTube stream closed:', song.title));
 
     const resource = createAudioResource(stream, {
-      inputType: StreamType.WebmOpus,
+      inputType,
+      metadata: { title: song.title, videoId },
     });
 
     queue.player.play(resource);
-    await queue.textChannel.send(`🎵 Now playing: **${song.title}** (requested by ${song.requestedBy})`);
+    await queue.textChannel.send('🎵 Now playing: **' + song.title + '** (requested by ' + song.requestedBy + ')');
   } catch (error) {
     console.error('[MusicPlayer] Failed to load/play song:', error);
     queue.songs.shift();
-    await queue.textChannel.send(`❌ Could not play **${song.title}**. Check the console for the playback error.`);
+    await queue.textChannel.send('❌ Could not play **' + song.title + '**. Error: `' + (error?.message || 'Unknown playback error') + '`');
     if (queue.songs.length > 0) void playSong(client, guildId, queue.songs[0]);
   }
 }
-
 // ── Commands ─────────────────────────────────────────────────────
 
 module.exports = {
@@ -159,9 +197,11 @@ module.exports = {
     const query = args.join(' ');
     let url, title;
 
-    if (ytdl.validateURL(query)) {
+    const directVideoId = extractYouTubeId(query);
+
+    if (directVideoId) {
       url = query;
-      const info = await ytdl.getInfo(url);
+      const info = await getYouTubeInfo(directVideoId);
       title = info.videoDetails.title;
     } else {
       const results = await ytSearch(query);
