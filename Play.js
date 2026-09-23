@@ -40,14 +40,18 @@ async function getYouTubeInfo(videoId) {
 
 async function createYouTubeAudioStream(videoId) {
   const youtube = await getYouTube();
-  const info = await youtube.getBasicInfo(videoId);
-  const format = info.chooseFormat({ type: 'audio', quality: 'best' });
-  if (!format) throw new Error('YouTube returned no audio-only format.');
 
-  const url = format.url || await format.decipher(youtube.session.player);
-  if (!url) throw new Error('YouTube returned an audio format without a playable URL.');
+  // Let youtubei.js perform its documented format selection and URL deciphering.
+  const format = await youtube.getStreamingData(videoId, {
+    type: 'audio',
+    quality: 'best',
+  });
 
-  const response = await fetch(url);
+  if (!format?.url) {
+    throw new Error('YouTube returned an audio format without a playable URL.');
+  }
+
+  const response = await fetch(format.url);
   if (!response.ok || !response.body) {
     throw new Error('YouTube audio request failed with HTTP ' + response.status);
   }
