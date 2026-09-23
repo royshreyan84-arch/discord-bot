@@ -35,6 +35,7 @@ async function getOrCreateQueue(client, message) {
     guildId,
     adapterCreator: message.guild.voiceAdapterCreator,
     selfDeaf: true,
+    debug: true,
   });
 
   connection.on('stateChange', (oldState, newState) => {
