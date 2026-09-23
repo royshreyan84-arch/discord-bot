@@ -89,13 +89,7 @@ async function getOrCreateQueue(client, message) {
       if (queue.songs.length > 0) {
         void playSong(client, guildId, queue.songs[0]);
       } else {
-        queue.textChannel.send('✅ Queue finished! Use `!play` to add more songs.');
-        setTimeout(() => {
-          if (queue.songs.length === 0) {
-            connection.destroy();
-            client.musicQueues.delete(guildId);
-          }
-        }, 60_000);
+        queue.textChannel.send('✅ Queue finished! I\'ll stay in the voice channel. Use `!play` to add more songs.');
       }
     }
   });
