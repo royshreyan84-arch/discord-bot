@@ -17,7 +17,7 @@ async function getYouTube() {
     // TV_EMBEDDED avoids a current WEB-client path that can return
     // formats without a decipherable URL.
     youtubePromise = import('youtubei.js').then(({ Innertube }) =>
-      Innertube.create({ client_type: 'TV_EMBEDDED' })
+      Innertube.create({ client_type: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER' })
     );
   }
   return youtubePromise;
