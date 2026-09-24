@@ -58,7 +58,7 @@ for (const file of commandFiles) {
   }
 }
 
-const eventFiles = ['Massage.js', 'Ready.js'];
+const eventFiles = ['Massage.js', 'Ready.js', 'Welcome.js'];
 for (const file of eventFiles) {
   const filePath = path.join(__dirname, file);
   if (!fs.existsSync(filePath)) continue;
