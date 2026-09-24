@@ -14,7 +14,11 @@ let youtubePromise = null;
 
 async function getYouTube() {
   if (!youtubePromise) {
-    youtubePromise = import('youtubei.js').then(({ Innertube }) => Innertube.create());
+    // TV_EMBEDDED avoids a current WEB-client path that can return
+    // formats without a decipherable URL.
+    youtubePromise = import('youtubei.js').then(({ Innertube }) =>
+      Innertube.create({ client_type: 'TV_EMBEDDED' })
+    );
   }
   return youtubePromise;
 }
@@ -64,7 +68,7 @@ async function createYouTubeAudioStream(videoId) {
     : StreamType.Arbitrary;
 
   console.log('[MusicPlayer] YouTube audio format: itag=' + (format.itag ?? 'unknown') + ', mime=' + (mimeType || 'unknown') + ', codecs=' + (codecs || 'unknown') + ', inputType=' + inputType);
-  return { info, stream, inputType };
+  return { stream, inputType };
 }
 
 // Queue structure per guild:
