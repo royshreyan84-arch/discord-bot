@@ -27,11 +27,12 @@ function postJSON(endpoint, body) {
         try {
           const parsed = JSON.parse(data);
           if (res.statusCode < 200 || res.statusCode >= 300) {
-            return reject(new Error(parsed.error || `Snekbox returned HTTP ${res.statusCode}`));
+            const detail = parsed.detail || parsed.error || parsed.message;
+            return reject(new Error(detail || `Executor returned HTTP ${res.statusCode}`));
           }
           resolve(parsed);
         } catch {
-          reject(new Error('Snekbox returned an invalid response.'));
+          reject(new Error('Python executor returned an invalid response.'));
         }
       });
     });
@@ -47,7 +48,9 @@ function postJSON(endpoint, body) {
 }
 
 function extractCode(message, args) {
-  const raw = message.content.slice(message.content.indexOf(args[0] || ''));
+  if (!args.length) return '';
+
+  const raw = message.content.slice(message.content.indexOf(args[0]));
 
   const fenced = raw.match(/^\s*```(?:python|py)?\s*\n([\s\S]*?)\n```\s*$/i);
   if (fenced) return fenced[1];
@@ -60,22 +63,23 @@ function extractCode(message, args) {
 
 function formatOutput(result) {
   const stdout = typeof result.stdout === 'string' ? result.stdout : '';
-  const returncode = result.returncode;
+  const stderr = typeof result.stderr === 'string' ? result.stderr : '';
+  const status = result.status || 'UNKNOWN';
 
-  let output = stdout || '(no output)';
+  let output = stdout || stderr || '(no output)';
   if (output.length > MAX_MESSAGE_LENGTH) {
     output = output.slice(0, MAX_MESSAGE_LENGTH) + '\n…output truncated';
   }
 
-  const status = returncode === 0 ? '✅' : '❌';
-  return `${status} Python result (exit code ${returncode ?? 'unknown'})\n\`\`\`text\n${output.replace(/```/g, '` ` `')}\n\`\`\``;
+  const ok = status === 'OK';
+  return `${ok ? '✅' : '❌'} Python result (${status})\n```text\n${output.replace(/\`\`\`/g, '` ` `')}\n````;
 }
 
 module.exports = {
   name: 'e',
   aliases: ['evalpython', 'py'],
-  description: 'Execute Python code in an isolated Snekbox sandbox.',
-  usage: '!e \`\`\`python\\nprint(2 + 3)\\n\`\`\`',
+  description: 'Execute Python code in an isolated sandbox.',
+  usage: '!e ```python\\nprint(2 + 3)\\n```',
   async execute(message, args) {
     const ownerId = process.env.OWNER_ID;
     if (!ownerId || message.author.id !== ownerId) {
@@ -98,11 +102,9 @@ module.exports = {
 
     try {
       const result = await postJSON(endpoint, {
-        args: ['main.py'],
-        files: [{
-          path: 'main.py',
-          content: Buffer.from(code, 'utf8').toString('base64'),
-        }],
+        language: 'python',
+        code,
+        stdin: '',
       });
 
       return message.reply(formatOutput(result));
