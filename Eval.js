@@ -72,7 +72,13 @@ function formatOutput(result) {
   }
 
   const ok = status === 'OK';
-  return `${ok ? '✅' : '❌'} Python result (${status})\n```text\n${output.replace(/\`\`\`/g, '` ` `')}\n````;
+  const statusIcon = ok ? '✅' : '❌';
+  const safeOutput = output.replace(/```/g, '` ` `');
+
+  return statusIcon + ' Python result (' + status + ')\n' +
+    '```text\n' +
+    safeOutput +
+    '\n```';
 }
 
 module.exports = {
